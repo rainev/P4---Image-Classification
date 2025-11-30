@@ -1,0 +1,53 @@
+# ------------------------------
+# Python + Virtualenv
+# ------------------------------
+*.pyc
+__pycache__/
+*.pyo
+*.pyd
+*.pdb
+*.pkl
+*.pickle
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# ------------------------------
+# MNIST Dataset (auto-download)
+# ------------------------------
+data/
+!data/.keep
+
+# If you want to keep the folder structure, then:
+# data/MNIST/raw/
+# data/MNIST/processed/
+
+# ------------------------------
+# Logs / Outputs
+# ------------------------------
+*.log
+*.out
+*.tmp
+*.cache
+*.DS_Store
+
+
+# ------------------------------
+# Build scripts & shell
+# ------------------------------
+build/
+dist/
+*.egg-info/
+*.spec
+
+# ------------------------------
+# OS / Editor files
+# ------------------------------
+.DS_Store
+Thumbs.db
+
+# VSCode
+.vscode/
+.history/

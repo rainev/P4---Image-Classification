@@ -1,0 +1,59 @@
+syntax = "proto3";
+
+package dashboard;
+
+// ===============================
+// Service Definition
+// ===============================
+
+service DashboardService {
+  // Training app sends a stream of TrainingBatch messages during training.
+  // Dashboard consumes them and returns a simple Ack when training is done.
+  rpc StreamTrainingData(stream TrainingBatch) returns (Ack);
+
+  // Optional health check / status RPC
+  rpc Ping(PingRequest) returns (PingResponse);
+}
+
+// ===============================
+// Messages
+// ===============================
+
+// One update from the training app for a training step
+message TrainingBatch {
+  // Parallel arrays: item i in each list corresponds to one image
+  repeated bytes images = 1;         // encoded image bytes (PNG/JPEG)
+  repeated string pred_labels = 2;   // model predictions as human-readable labels
+  repeated string true_labels = 3;   // ground-truth labels
+
+  float loss = 4;                    // loss for this batch/step
+  int64 step = 5;                    // global training step/iteration
+  int32 epoch = 6;                   // epoch index
+
+  int32 batch_size = 7;              // actual batch size for this message
+  int64 sent_timestamp_ms = 8;       // client send time (ms since epoch)
+  int32 image_width = 9;             // image width
+  int32 image_height = 10;           // image height
+}
+
+// Simple acknowledgement when stream ends
+message Ack {
+  bool ok = 1;
+  string message = 2;
+}
+
+// Health check request
+message PingRequest {
+  string client_id = 1;              // ID of the training run
+  int64 client_timestamp_ms = 2;     // time on client when ping was sent
+}
+
+// Health check response
+message PingResponse {
+  bool alive = 1;                    // whether dashboard is alive/ready
+  string status = 2;                 // e.g. "OK", "NO_DATA", "BUSY"
+  int64 server_timestamp_ms = 3;     // time on server when reply sent
+
+  int32 frames_per_second = 4;       // current FPS measured by dashboard
+  int32 queue_size = 5;              // how many TrainingBatches are waiting in queue
+}

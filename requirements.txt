@@ -1,0 +1,25 @@
+# Install only INSIDE your .venv
+# source .venv/bin/activate
+# pip install -r requirements.txt
+
+# ---- Core gRPC / protobuf ----
+grpcio==1.62.2
+grpcio-tools==1.62.2
+protobuf==4.25.3
+googleapis-common-protos==1.60.0
+
+# ---- Dashboard UI / Graphics ----
+PyQt6==6.6.1
+matplotlib==3.8.2
+Pillow==10.2.0
+numpy==1.26.4
+
+# ---- PyTorch (CPU-only) ----
+# Works on Intel + Apple Silicon
+torch==2.2.0+cpu
+torchvision==0.17.0+cpu
+torchaudio==2.2.0+cpu
+-f https://download.pytorch.org/whl/cpu
+
+# ---- Optional utilities ----
+tqdm==4.66.1
