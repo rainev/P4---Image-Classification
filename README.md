@@ -62,4 +62,10 @@ cd training
 python train.py
 ```
 
+### Method 2: With .exe file
+Download the `.exe` file for the dashboard here:
+https://drive.google.com/drive/folders/1Veswvn8mUw44B6VhEwOZ5SbLw_n-9uPi?usp=sharing
+1. Run the `Dashboard.exe`
+2. Start training with the same steps as method 1
+
 
