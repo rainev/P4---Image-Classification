@@ -165,35 +165,56 @@ def main():
     )
 
     # ----- start streaming training data -----
-    print("\nStarting CNN training and streaming to dashboard...")
-    print("=" * 60 + "\n")
-    request_iter = training_stream(model, train_loader, device, max_steps=2000)
 
-    # BatchAck responses
-    try:
-        batch_count = 0
-        for ack in stub.StreamTrainingData(request_iter):
-            batch_count += 1
-            
-            if not ack.ok:
-                print(f"[Training] Dashboard error: {ack.message}")
-            
-            # slow down training if dashboard gets slow
-            if ack.frames_per_second > 0 and ack.frames_per_second < 30:
-                print(f"[Training] Dashboard FPS low ({ack.frames_per_second}), adding delay...")
-                time.sleep(0.05)
-            
-            # Log every 50 batchess
-            if batch_count % 50 == 0:
-                latency_ms = int(time.time() * 1000) - ack.server_timestamp_ms
-                print(f"[Training] ✓ Batch {batch_count} | Dashboard FPS: {ack.frames_per_second} | Latency: {latency_ms}ms")
+    max_reconnect_attempts = 3
+    reconnect_delay = 5  # seconds
+
+    for reconnect_attempt in range(max_reconnect_attempts):
+        try:
+            print(f"\n{'='*60}")
+            print("\nStarting CNN training and streaming to dashboard...")
+            print("=" * 60 + "\n")
+
+            request_iter = training_stream(model, train_loader, device, max_steps=2000)
+            batch_count = 0
+
+            # BatchAck responses
+            for ack in stub.StreamTrainingData(request_iter):
+                batch_count += 1
                 
-    except grpc.RpcError as e:
-        print(f"[Training] ✗ gRPC error during streaming: {e.code()} - {e.details()}")
-    
-    print("\n" + "=" * 60)
-    print("Training stream completed.")
-    print("=" * 60)
+                if not ack.ok:
+                    print(f"[Training] Dashboard error: {ack.message}")
+                
+                # slow down training if dashboard gets slow
+                if ack.frames_per_second > 0 and ack.frames_per_second < 30:
+                    print(f"[Training] Dashboard FPS low ({ack.frames_per_second}), delaying traning")
+                    time.sleep(0.05)
+                
+                # Log every 50 batchess
+                if batch_count % 50 == 0:
+                    latency_ms = int(time.time() * 1000) - ack.server_timestamp_ms
+                    print(f"[Training] ✓ Batch {batch_count} | Dashboard FPS: {ack.frames_per_second} | Latency: {latency_ms}ms")
+                    
+            # streaming is finish, break out of reconnect loop
+            print("\n" + "=" * 60)
+            print("Training stream completed.")
+            print("=" * 60)
+            break
+
+        except grpc.RpcError as e:
+            print(f"\n[Training] ✗ gRPC error: {e.code()} - {e.details()}")
+            
+            if reconnect_attempt < max_reconnect_attempts - 1:
+                print(f"[Training] Attempting to reconnect in {reconnect_delay} seconds...")
+                time.sleep(reconnect_delay)
+                
+                # Try to reconnect
+                stub = connect_to_dashboard_with_retry(max_retries=3)
+                if stub is None:
+                    print("[Training] Reconnection failed. Exiting.")
+                    break
+            else:
+                print("[Training] Max reconnection attempts reached. Exiting.")
 
 
 if __name__ == "__main__":
