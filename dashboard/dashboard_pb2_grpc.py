@@ -2,15 +2,11 @@
 """Client and server classes corresponding to protobuf-defined services."""
 import grpc
 
-from services.proto import dashboard_pb2 as dashboard__pb2
+import dashboard_pb2 as dashboard__pb2
 
 
 class DashboardServiceStub(object):
-    """===============================
-    Service Definition
-    ===============================
-
-    """
+    """Missing associated documentation comment in .proto file."""
 
     def __init__(self, channel):
         """Constructor.
@@ -18,10 +14,10 @@ class DashboardServiceStub(object):
         Args:
             channel: A grpc.Channel.
         """
-        self.StreamTrainingData = channel.stream_unary(
+        self.StreamTrainingData = channel.stream_stream(
                 '/dashboard.DashboardService/StreamTrainingData',
                 request_serializer=dashboard__pb2.TrainingBatch.SerializeToString,
-                response_deserializer=dashboard__pb2.Ack.FromString,
+                response_deserializer=dashboard__pb2.BatchAck.FromString,
                 )
         self.Ping = channel.unary_unary(
                 '/dashboard.DashboardService/Ping',
@@ -31,22 +27,16 @@ class DashboardServiceStub(object):
 
 
 class DashboardServiceServicer(object):
-    """===============================
-    Service Definition
-    ===============================
-
-    """
+    """Missing associated documentation comment in .proto file."""
 
     def StreamTrainingData(self, request_iterator, context):
-        """Training app sends a stream of TrainingBatch messages during training.
-        Dashboard consumes them and returns a simple Ack when training is done.
-        """
+        """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
     def Ping(self, request, context):
-        """Optional health check / status RPC
+        """status RPC
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -55,10 +45,10 @@ class DashboardServiceServicer(object):
 
 def add_DashboardServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
-            'StreamTrainingData': grpc.stream_unary_rpc_method_handler(
+            'StreamTrainingData': grpc.stream_stream_rpc_method_handler(
                     servicer.StreamTrainingData,
                     request_deserializer=dashboard__pb2.TrainingBatch.FromString,
-                    response_serializer=dashboard__pb2.Ack.SerializeToString,
+                    response_serializer=dashboard__pb2.BatchAck.SerializeToString,
             ),
             'Ping': grpc.unary_unary_rpc_method_handler(
                     servicer.Ping,
@@ -73,11 +63,7 @@ def add_DashboardServiceServicer_to_server(servicer, server):
 
  # This class is part of an EXPERIMENTAL API.
 class DashboardService(object):
-    """===============================
-    Service Definition
-    ===============================
-
-    """
+    """Missing associated documentation comment in .proto file."""
 
     @staticmethod
     def StreamTrainingData(request_iterator,
@@ -90,9 +76,9 @@ class DashboardService(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.stream_unary(request_iterator, target, '/dashboard.DashboardService/StreamTrainingData',
+        return grpc.experimental.stream_stream(request_iterator, target, '/dashboard.DashboardService/StreamTrainingData',
             dashboard__pb2.TrainingBatch.SerializeToString,
-            dashboard__pb2.Ack.FromString,
+            dashboard__pb2.BatchAck.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 

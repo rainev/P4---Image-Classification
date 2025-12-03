@@ -9,10 +9,22 @@ import torch.nn as nn
 import torch.optim as optim
 from PIL import Image
 
-from training.model import MnistCNN
-from training.data_loader import get_mnist_loader
-from services.proto import dashboard_pb2, dashboard_pb2_grpc
+from model import MnistCNN
+from data_loader import get_mnist_loader
+import dashboard_pb2, dashboard_pb2_grpc
 
+
+def calculate_display_size(original_width, original_height):
+    """
+    scale images, specs (min:32x32 max: 512x512)
+    """
+    if original_width <= 32 or original_height <= 32:
+        return original_width * 2, original_height * 2
+    elif original_width > 512 or original_height > 512:
+        scale_factor = min(512 / original_width, 512 / original_height)
+        return int(original_width * scale_factor), int(original_height * scale_factor)
+    else:
+        return original_width, original_height
 
 def encode_image_tensor(image_tensor):
     """
@@ -38,13 +50,19 @@ def training_stream(model, train_loader, device, max_steps=400):
     epoch_idx = 0
     model.train()
 
+    # Calculate display size 
+    original_width, original_height = 28, 28
+    display_width, display_height = calculate_display_size(original_width, original_height)
+    
+    print(f"[Training] Image scaling: {original_width}x{original_height} → {display_width}x{display_height}")
+
     for epoch in range(1, 1000):  # big number; we break via max_steps
         epoch_idx = epoch
         for batch_idx, (images, labels) in enumerate(train_loader):
             global_step += 1
 
-            images = images.to(device)   # (B, 1, 28, 28)
-            labels = labels.to(device)   # (B,)
+            images = images.to(device)   
+            labels = labels.to(device) 
 
             # ----- forward + backward + optimize -----
             optimizer.zero_grad()
@@ -65,7 +83,12 @@ def training_stream(model, train_loader, device, max_steps=400):
             true_labels = []
 
             for i in range(num_samples):
-                image_bytes_list.append(encode_image_tensor(images[i]))
+                image_bytes_list.append(
+                    encode_image_tensor(
+                        images[i], 
+                        target_size=(display_width, display_height)
+                    )
+                )
                 pred_labels.append(str(int(preds[i].cpu().item())))
                 true_labels.append(str(int(labels[i].cpu().item())))
 
@@ -82,17 +105,56 @@ def training_stream(model, train_loader, device, max_steps=400):
                 image_height=28,
             )
 
+            if global_step % 50 == 0:
+                print(f"[Training] Step {global_step} | Epoch {epoch_idx} | Loss: {loss.item():.4f}")
+
             if global_step >= max_steps:
-                return  # stop generator after some steps to keep demo short
+                print(f"[Training] Reached max_steps={max_steps}, stopping.")
+                return
+
+def connect_to_dashboard_with_retry(max_retries=5):
+    """
+    Connect to dashboard with retry logic for fault tolerance.
+    """
+    for attempt in range(max_retries):
+        try:
+            channel = grpc.insecure_channel("localhost:50051")
+            stub = dashboard_pb2_grpc.DashboardServiceStub(channel)
+            
+            # Test connection with Ping
+            ping_req = dashboard_pb2.PingRequest(
+                client_id="mnist_trainer",
+                client_timestamp_ms=int(time.time() * 1000),
+            )
+            response = stub.Ping(ping_req)
+            
+            if response.alive:
+                print(f"[Training] ✓ Connected to dashboard (attempt {attempt + 1})")
+                return stub
+                
+        except grpc.RpcError as e:
+            print(f"[Training] ⚠ Connection attempt {attempt + 1}/{max_retries} failed")
+            if attempt < max_retries - 1:
+                time.sleep(2)
+    
+    print("[Training] ✗ Could not connect to dashboard after retries.")
+    return None
 
 
 def main():
+
+    print("\nConnecting to dashboard...")
     # ----- gRPC channel & stub -----
-    channel = grpc.insecure_channel("localhost:50051")
-    stub = dashboard_pb2_grpc.DashboardServiceStub(channel)
+    stub = connect_to_dashboard_with_retry(max_retries=5)
+
+    if not stub:
+        print("[Training] Cannot proceed without dashboard. Exiting.")
+        return
 
     # ----- device & model -----
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"[Training] Using device: {device}")
+
     model = MnistCNN().to(device)
 
     # ----- data loader -----
@@ -103,10 +165,35 @@ def main():
     )
 
     # ----- start streaming training data -----
-    print("▶ Starting CNN training and streaming to dashboard...")
+    print("\nStarting CNN training and streaming to dashboard...")
+    print("=" * 60 + "\n")
     request_iter = training_stream(model, train_loader, device, max_steps=400)
-    ack = stub.StreamTrainingData(request_iter)
-    print("✔ Dashboard Ack:", ack.ok, ack.message)
+
+    # BatchAck responses
+    try:
+        batch_count = 0
+        for ack in stub.StreamTrainingData(request_iter):
+            batch_count += 1
+            
+            if not ack.ok:
+                print(f"[Training] Dashboard error: {ack.message}")
+            
+            # slow down training if dashboard gets slow
+            if ack.frames_per_second > 0 and ack.frames_per_second < 30:
+                print(f"[Training] Dashboard FPS low ({ack.frames_per_second}), adding delay...")
+                time.sleep(0.05)
+            
+            # Log every 50 batchess
+            if batch_count % 50 == 0:
+                latency_ms = int(time.time() * 1000) - ack.server_timestamp_ms
+                print(f"[Training] ✓ Batch {batch_count} | Dashboard FPS: {ack.frames_per_second} | Latency: {latency_ms}ms")
+                
+    except grpc.RpcError as e:
+        print(f"[Training] ✗ gRPC error during streaming: {e.code()} - {e.details()}")
+    
+    print("\n" + "=" * 60)
+    print("Training stream completed.")
+    print("=" * 60)
 
 
 if __name__ == "__main__":

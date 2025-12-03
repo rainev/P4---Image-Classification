@@ -4,9 +4,9 @@ import threading
 
 from PyQt6.QtWidgets import QApplication
 
-from services.dashboard.state_manager import StateManager
-from services.dashboard.ui import DashboardWindow
-from services.dashboard.grpc_server import serve_in_foreground
+from state_manager import StateManager
+from ui import DashboardWindow
+from grpc_server import serve_in_foreground
 
 
 def _start_grpc_server(state_manager):

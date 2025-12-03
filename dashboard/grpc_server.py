@@ -3,7 +3,7 @@ from concurrent import futures
 import time
 import grpc
 
-from services.proto import dashboard_pb2, dashboard_pb2_grpc
+import dashboard_pb2, dashboard_pb2_grpc
 
 
 class DashboardService(dashboard_pb2_grpc.DashboardServiceServicer):
@@ -11,17 +11,32 @@ class DashboardService(dashboard_pb2_grpc.DashboardServiceServicer):
         self.state = state_manager
 
     def StreamTrainingData(self, request_iterator, context):
-        """
-        Receives a stream of TrainingBatch messages from the training app.
-        For each batch, we update the shared state for the UI to consume.
-        """
         try:
             for batch in request_iterator:
+                # Update shared state
                 self.state.update_from_batch(batch)
-            return dashboard_pb2.Ack(ok=True, message="Training stream ended.")
+                
+                # Gets current status
+                fps, queue_size = self.state.get_status()
+                
+                # Send acknowledgement, per batch (also sends fps)
+                yield dashboard_pb2.BatchAck(
+                    ok=True,
+                    message="Batch received",
+                    server_timestamp_ms=int(time.time() * 1000),
+                    frames_per_second=int(fps),
+                    queue_size=queue_size,
+                )
+                
         except grpc.RpcError as e:
-            # You can log this and mention it in fault-tolerance discussion
-            return dashboard_pb2.Ack(ok=False, message=f"RPC error: {e}")
+            # Error acknowledgment if error
+            yield dashboard_pb2.BatchAck(
+                ok=False,
+                message=f"RPC error: {e}",
+                server_timestamp_ms=int(time.time() * 1000),
+                frames_per_second=0,
+                queue_size=0,
+            )
 
     def Ping(self, request, context):
         """
