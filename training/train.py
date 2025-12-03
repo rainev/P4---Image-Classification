@@ -26,7 +26,7 @@ def calculate_display_size(original_width, original_height):
     else:
         return original_width, original_height
 
-def encode_image_tensor(image_tensor):
+def encode_image_tensor(image_tensor, target_size=None):
     """
     Convert a single MNIST tensor (1, 28, 28) to PNG bytes.
     """
@@ -167,7 +167,7 @@ def main():
     # ----- start streaming training data -----
     print("\nStarting CNN training and streaming to dashboard...")
     print("=" * 60 + "\n")
-    request_iter = training_stream(model, train_loader, device, max_steps=400)
+    request_iter = training_stream(model, train_loader, device, max_steps=2000)
 
     # BatchAck responses
     try:
