@@ -68,4 +68,12 @@ https://drive.google.com/drive/folders/1Veswvn8mUw44B6VhEwOZ5SbLw_n-9uPi?usp=sha
 1. Run the `Dashboard.exe`
 2. Start training with the same steps as method 1
 
-
+If you want to generate the .exe file yourself, follow the steps below:
+1. install Pyinstaller in the virtual environment
+```bash
+pip install pyinstaller
+```
+2. Navigate to the dashboard folder and run
+```
+pyinstaller dashboard.spec
+```
